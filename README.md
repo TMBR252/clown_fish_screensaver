@@ -128,6 +128,65 @@ settle, each marked `CHECK:` in `tank/macos_backend.py`:
   UI on the main thread, so one process drives them all. With several large displays
   that may not keep up, in which case lower `--fps`.
 
+## If the first Mac run goes wrong
+
+Start it from a terminal with `./start.sh`, not in the background: it prints a header
+first that answers most of the questions below.
+
+```
+macOS backend (UNVERIFIED - please report what happens)
+  window level : <ours>  (icons <icons>, offset -1)
+  screen 0     : Built-in Retina Display 3456x2234 px (1728x1117 pt, scale 2)  GL 410
+```
+
+The two levels are whatever `CGWindowLevelForKey` returns on your machine, printed so
+you can see them rather than guess. They are not small numbers near zero, which is why
+the offset below is a nudge and not a dial you can turn up.
+
+**It stops before the header is complete.** Nothing printed at all means an import
+failed, and the traceback says which: `ModuleNotFoundError: No module named 'AppKit'`
+means PyObjC did not install, so run `./setup.sh` again and watch for a pip error. The
+first two lines followed by `no OpenGL 4.1 core pixel format on this Mac` means the
+profile request was refused, which is the second `CHECK:` above.
+
+**The header prints, but the screen looks untouched.** Separate the two possible
+causes before changing anything, because they look identical: either the window is
+drawing correctly somewhere you cannot see, or it is not drawing at all.
+
+To tell them apart, make the window an ordinary one for a moment. In
+`tank/macos_backend.py`, have `desktop_level()` return `0`, which is
+`NSNormalWindowLevel`, and run again. Stop it with Ctrl+C in the terminal: it ignores
+mouse events, so it will sit over your work without catching clicks.
+
+- **A fish appears, over everything.** The renderer, the context and the window are all
+  fine, and only the level is wrong. Put `desktop_level()` back and try small offsets
+  around the icon level: `0` to sit exactly where the icons are, then `+1`, then larger
+  negative values. This is the first `CHECK:` in the file, and the one most worth
+  reporting, since the answer is the same for everyone on your macOS version.
+- **Still nothing.** The level is not the problem. Read on.
+
+**A black or empty window, correctly placed.** The context is too old for the shaders.
+Check the `GL` number in the header: it must be 410. If it says 210 or 320 the pixel
+format fell back to a legacy or 3.2 core profile, and the shaders need GLSL 330.
+
+**The fish draws in one corner, or a quarter of the screen.** A scale mismatch between
+points and pixels. This was found and fixed before release, so if you see it the fix is
+incomplete: the header says what the backend believes, and `scale 2` with a `px` size
+twice the `pt` size is right for a Retina display.
+
+**The icons vanish, or clicks stop reaching the desktop.** The window is in front of
+the icons rather than behind them. Lower `DESKTOP_LEVEL_OFFSET`. If clicks are being
+eaten while the window is correctly behind, `setIgnoresMouseEvents_` is not taking
+effect, which is worth reporting on its own.
+
+**It runs, but stutters.** One process drives every display here, unlike Windows. Try
+`./start.sh --fps 15`, or `./start.sh --monitor 0` for a single screen, which also
+tells you whether one particular display is the expensive one.
+
+**Reporting it.** Paste that header, the macOS version, and whether the window
+appeared at all. Those three answer most of what is unknown, and the header is written
+to be safe to share: it names displays and GL versions, nothing else.
+
 ## How it works
 
 ```
