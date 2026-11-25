@@ -114,8 +114,12 @@ borderless `NSWindow` at `kCGDesktopIconWindowLevel - 1`, which should be above 
 picture and below the icons, with `ignoresMouseEvents` so clicks still reach the
 desktop.
 
-The three things most likely to be wrong, each marked `CHECK:` in
-`tank/macos_backend.py`:
+Four bugs that were findable without a Mac have already been fixed: the borderless
+style mask was renamed in the 10.12 SDK (the old name fails to import on current
+PyObjC), the event mask needed 64 bits rather than 32, and Cocoa geometry is in
+*points* while the framebuffer is in *pixels*, so on any Retina Mac the tank would
+have drawn into a quarter of the screen. What is left are the things only a Mac can
+settle, each marked `CHECK:` in `tank/macos_backend.py`:
 
 - **The window level.** Projects disagree on the right one, and it has moved between
   macOS releases. If nothing appears, try other values of `DESKTOP_LEVEL_OFFSET`.

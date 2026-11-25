@@ -207,8 +207,9 @@ def run(index=None, fps=24, seed=None, bare=False):
         tank = Tank(s.w, s.h, seed=seed, bare=bare)
         surface = Surface(s)
         tank.use_gl(surface.ctx)
-        print("  screen %d     : %s %dx%d at (%d,%d)  GL %s"
-              % (s.index, s.name, s.w, s.h, s.x, s.y, surface.ctx.version_code))
+        print("  screen %d     : %s %dx%d px (%dx%d pt, scale %.2g)  GL %s"
+              % (s.index, s.name, s.w, s.h, s.w_pt, s.h_pt, s.scale,
+                 surface.ctx.version_code))
         tanks.append((s, tank, surface))
 
     period = 1.0 / fps
