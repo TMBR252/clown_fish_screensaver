@@ -8,6 +8,13 @@ The anemone's tentacles bend away as the fish swims through them and light up wh
 brushes past. Plankton in the water flashes when it rushes by and gets dragged along in
 its wake. At speed the tail sheds sparks. Ripples of sunlight cross the sand.
 
+![The clownfish among the anemone's tentacles](docs/preview.png)
+
+Every character is picked by brightness from a ramp, on the GPU. Here it is at full
+size — the pale tentacles are the ones the fish has just brushed past:
+
+![Detail at full size](docs/detail.png)
+
 Built from [ASCII Lab's clownfish](https://github.com/sapozhkov/ascii-lab-public) —
 see [Credits and licence](#credits-and-licence), which matters here.
 
