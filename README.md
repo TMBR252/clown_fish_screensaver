@@ -15,8 +15,6 @@ size. The pale tentacles are the ones the fish has just brushed past:
 
 ![Detail at full size](docs/detail.png)
 
-Built from [ASCII Lab's clownfish](https://github.com/sapozhkov/ascii-lab-public).
-See [Credits and licence](#credits-and-licence), which matters here.
 
 ## Requirements
 
