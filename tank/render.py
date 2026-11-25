@@ -16,6 +16,8 @@ Three things differ from the original's `grid()` + `paint()`:
 Everything about the view lives on a Camera rather than in module constants, because
 one tank runs per monitor and monitors need not be the same size.
 """
+import os
+
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
@@ -35,8 +37,19 @@ SPECK_Z = 8.5                # drifting specks: behind the decor, in front of op
 EMPTY_Z = 99.0               # nothing here at all
 NEAR_Z, FAR_Z = -0.45, 0.50  # how far towards and away from the lens the fish may go
 
-FONT_CANDIDATES = (r"C:\Windows\Fonts\consola.ttf", "consola.ttf",
-                   r"C:\Windows\Fonts\lucon.ttf", "DejaVuSansMono.ttf")
+# A monospace face, whatever the machine has. Set CLOWNFISH_FONT to override.
+FONT_CANDIDATES = (
+    # Windows
+    r"C:\Windows\Fonts\consola.ttf", r"C:\Windows\Fonts\lucon.ttf", "consola.ttf",
+    # macOS
+    "/System/Library/Fonts/Menlo.ttc", "/System/Library/Fonts/SFNSMono.ttf",
+    "/System/Library/Fonts/Monaco.ttf", "/Library/Fonts/Courier New.ttf",
+    # Linux
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+    "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
+    "/usr/share/fonts/liberation/LiberationMono-Regular.ttf",
+    "DejaVuSansMono.ttf", "LiberationMono-Regular.ttf",
+)
 
 BEAMS = np.array([-2.6, -1.35, -0.2, 0.95, 2.1, 3.2])
 PREY_INK = np.array([1.0, 0.84, 0.42])
@@ -98,12 +111,15 @@ _atlas_u16 = None
 
 
 def _font(size):
-    for name in FONT_CANDIDATES:
+    override = os.environ.get("CLOWNFISH_FONT")
+    names = (override,) + FONT_CANDIDATES if override else FONT_CANDIDATES
+    for name in names:
         try:
             return ImageFont.truetype(name, size)
         except OSError:
             continue
-    raise OSError("No monospace font found; tried " + ", ".join(FONT_CANDIDATES))
+    raise OSError("No monospace font found. Tried: %s. Set CLOWNFISH_FONT to "
+                  "the path of a monospace .ttf or .ttc." % ", ".join(names))
 
 
 def atlas():
