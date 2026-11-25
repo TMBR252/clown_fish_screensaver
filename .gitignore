@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+fishtank-*.log
+tools/wallpaper-before.txt
+tools/black.bmp
+*.png

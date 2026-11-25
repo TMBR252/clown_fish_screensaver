@@ -1,0 +1,5 @@
+# What the tank needs. moderngl is what puts the rendering on the GPU; without it
+# the tank still runs, on the CPU, far more slowly (start it with --no-gpu).
+numpy>=1.24
+pillow>=9.0
+moderngl>=5.8
