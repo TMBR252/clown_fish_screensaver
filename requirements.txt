@@ -1,5 +1,9 @@
-# What the tank needs. moderngl is what puts the rendering on the GPU; without it
-# the tank still runs, on the CPU, far more slowly (start it with --no-gpu).
+# What the tank needs. moderngl puts the rendering on the GPU; without it the tank
+# still runs on the CPU, far more slowly (start it with --no-gpu on Windows).
 numpy>=1.24
 pillow>=9.0
 moderngl>=5.8
+
+# macOS only: the window that sits behind the desktop icons is an NSWindow.
+pyobjc-framework-Cocoa>=9.0; sys_platform == "darwin"
+pyobjc-framework-Quartz>=9.0; sys_platform == "darwin"

@@ -33,8 +33,8 @@ import sys
 import time
 from ctypes import wintypes
 
-from . import fish as fishmod
-from . import glctx, gpu, reef, render, scene_gl, swimmer
+from . import glctx, render
+from .scene import Tank
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
@@ -435,11 +435,10 @@ class Wallpaper:
         self.hidden = False
         self.fails = 0
 
-        self.renderer = render.Renderer(self.w, self.h)
-        self.weed = reef.Anemone()
-        self.weed.settle(240)          # let the arms find the surge before anyone looks
-        lo, hi = self.renderer.cam.swim_box(keep_clear=self.icon_margin)
-        self.fish = swimmer.Swimmer(lo, hi, seed)
+        self.tank = Tank(self.w, self.h, seed=seed, bare=bare)
+        if icon_margin > 0:            # keep the fish off a strip of desktop icons
+            lo, hi = self.tank.cam.swim_box(keep_clear=icon_margin)
+            self.tank.fish.lo, self.tank.fish.hi = lo, hi
 
         if self.host_pref == "defview":
             self.host, self.how = defview_host()
@@ -455,8 +454,6 @@ class Wallpaper:
         self.hdc = user32.GetDC(self.hwnd)
         self.last_pos = None
         self.gl = None
-        self.painter = None
-        self.scene = None
         self._start_gl()
 
     def _make_window(self):
@@ -548,53 +545,21 @@ class Wallpaper:
         self.gl_tries = getattr(self, "gl_tries", 0) + 1
         try:
             self.gl = glctx.WindowContext(self.hwnd)
-            cam = self.renderer.cam
-            self.painter = gpu.CellPainter(self.gl.ctx, cam, render.atlas())
-            self.scene = scene_gl.SceneRenderer(self.gl.ctx, cam, self.renderer.bg,
-                                                bare=self.bare)
+            self.tank.use_gl(self.gl.ctx)
             self.gl.ctx.viewport = (0, 0, self.w, self.h)
             self.how_gl = "%s, GL %s" % (self.gl.ctx.info["GL_RENDERER"],
                                          self.gl.ctx.version_code)
         except Exception as exc:
-            self.gl = self.painter = self.scene = None
+            self.gl = None
+            self.tank.drop_gl()
             self.how_gl = "unavailable (%s); drawing on the CPU" % (exc,)
 
     def _draw_gpu(self):
         """The whole scene on the GPU: geometry in, lit letters out."""
-        ctx = self.gl.ctx
-        t = self.fish.clock
-        place, yaw, pitch = self.fish.pose()
-        fishmod.set_pose(**self.fish.shape())
-        const = fishmod.local_const()
-        moving = fishmod.local_moving(t)
-        along, reach, body_end = fishmod.spine(t)
-        spin = fishmod.pose_matrix(yaw, pitch)
-        pose = dict(spin=spin, place=place, reach=reach, body_end=body_end,
-                    facing=fishmod.facing_of(spin))
-        cam = self.renderer.cam
-        overlay = render.overlay_cells(cam, t, self.fish, specks=not self.bare)
-        floor = None if self.bare else (render.sand_live(cam, t),
-                                        render.coral_live(cam, t))
-        ink_tex, meta_tex = self.scene.draw(t, const, moving, self.weed.curve(),
-                                            overlay, pose, self.weed.motes(),
-                                            floor)
-        ctx.screen.use()
-        ctx.viewport = (0, 0, self.w, self.h)
-        self.painter.draw_textures(ink_tex, meta_tex)
+        self.tank.present_gl(self.gl.ctx)
         _p = time.perf_counter()
         self.gl.present()
         self.presented += time.perf_counter() - _p
-
-    def _show(self, chars, ink):
-        if self.painter is not None:
-            self.painter.upload(chars, ink)
-            self.painter.draw()
-            self.gl.present()
-        else:
-            image = self.renderer.paint(chars, ink)
-            gdi32.StretchDIBits(self.hdc, 0, 0, self.w, self.h, 0, 0, self.w, self.h,
-                                image.ctypes.data, ctypes.byref(self.bmi),
-                                DIB_RGB_COLORS, SRCCOPY)
 
     def _wndproc(self, hwnd, msg, wparam, lparam):
         if msg == WM_DESTROY:
@@ -615,7 +580,8 @@ class Wallpaper:
                 self.gl.release()
             except Exception:
                 pass
-            self.gl = self.painter = self.scene = None
+            self.gl = None
+            self.tank.drop_gl()
         if getattr(self, "hdc", None):
             user32.ReleaseDC(self.hwnd, self.hdc)
             self.hdc = None
@@ -649,7 +615,7 @@ class Wallpaper:
             return None, False
         if not cursor_on_desktop(pt):
             return None, False          # busy in another window: not food
-        return self.renderer.cam.unproject(lx, ly), moved
+        return (lx, ly), moved
 
     def _blit(self, image):
         gdi32.StretchDIBits(self.hdc, 0, 0, self.w, self.h, 0, 0, self.w, self.h,
@@ -688,10 +654,10 @@ class Wallpaper:
                 check = now
                 # starting at login can beat the display driver; a context that failed
                 # then would otherwise leave us on the CPU renderer for the whole session
-                if (self.scene is None and not self.no_gl and self.gl_tries < 6
+                if (not self.tank.on_gpu and not self.no_gl and self.gl_tries < 6
                         and not self.lost and user32.IsWindow(self.hwnd)):
                     self._start_gl()
-                    if self.scene is not None:
+                    if self.tank.on_gpu:
                         print("  gpu came up on retry %d: %s"
                               % (self.gl_tries, self.how_gl), flush=True)
                 if self.lost or not user32.IsWindow(self.hwnd):
@@ -724,17 +690,13 @@ class Wallpaper:
                 continue
 
             where, moved = self._read_cursor()
-            self.fish.attend(where, moved)
-            self.fish.advance(dt)
-            place, yaw, pitch = self.fish.pose()
-            self.weed.advance(dt, place, self.fish.velocity, yaw, pitch)
-            if self.scene is not None:
+            self.tank.step(dt, where, moved)
+            if self.tank.on_gpu:
                 _t0 = time.perf_counter()
                 self._draw_gpu()
                 self.spent += time.perf_counter() - _t0
             else:
-                self._show(*self.renderer.grid(self.fish.clock, self.fish,
-                                               self.weed.curve()))
+                self._blit(self.tank.draw_cpu())
 
             self.drawn += 1
             if now - self.counted > 10.0:

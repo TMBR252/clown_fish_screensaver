@@ -1,9 +1,9 @@
-"""Start the tank with no console window (pythonw.exe runs .pyw files).
+"""Start the tank with no console window. Windows: pythonw.exe runs .pyw files.
 
 pythonw has no console, so sys.stdout and sys.stderr are None and any print() raises
 AttributeError. Everything goes to a log beside this file instead, which is the first
-place to look if the fish does not appear. One log per screen, since one process runs
-per monitor.
+place to look if the fish does not appear. One log per screen, since Windows runs one
+process per monitor.
 """
 import os
 import sys
@@ -19,7 +19,7 @@ _log = open(os.path.join(HERE, "fishtank-%s.log" % _which), "w",
 sys.stdout = sys.stderr = _log
 
 try:
-    from tank.wallpaper import main
+    from tank.app import main
     code = main()
 except BaseException:
     import traceback

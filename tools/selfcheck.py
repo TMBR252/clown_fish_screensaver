@@ -32,9 +32,15 @@ def main():
     print("  python %s" % platform.python_version())
     print("")
 
-    if os.name != "nt":
-        line(BAD, "this only runs on Windows: it draws into the Windows desktop")
+    if sys.platform == "win32":
+        backend = "Windows (verified)"
+    elif sys.platform == "darwin":
+        backend = "macOS (UNVERIFIED: never run on a Mac, please report)"
+    else:
+        line(BAD, "no backend for %s: the renderer is portable, but nothing here"
+                  " knows how to get behind this desktop" % sys.platform)
         return 1
+    line(OK, "backend: %s" % backend)
 
     # --- the libraries -------------------------------------------------------------
     try:
@@ -87,9 +93,16 @@ def main():
 
     # --- the desktop --------------------------------------------------------------
     try:
-        from tank import wallpaper as wp
-        wp.dpi_aware()
-        mons = wp.monitors()
+        if sys.platform == "darwin":
+            from tank import macos_backend as wp
+            mons = wp.screens()
+            line(OK, "window level %d (icons are at %d)"
+                 % (wp.desktop_level(),
+                    wp.Quartz.CGWindowLevelForKey(wp.Quartz.kCGDesktopIconWindowLevelKey)))
+        else:
+            from tank import wallpaper as wp
+            wp.dpi_aware()
+            mons = wp.monitors()
         line(OK, "%d screen%s:" % (len(mons), "" if len(mons) == 1 else "s"))
         for i, m in enumerate(mons):
             print("         %d  %-14s %dx%d at (%d,%d)%s"
@@ -98,12 +111,13 @@ def main():
             line(WARN, "more than 4 screens: one process each, so watch the CPU")
             notes += 1
 
-        pm = wp.user32.FindWindowW("Progman", None)
-        if pm:
-            line(OK, "desktop found (Progman)")
-        else:
-            line(BAD, "no Progman window: is Explorer running as the shell?")
-            problems += 1
+        if sys.platform == "win32":
+            pm = wp.user32.FindWindowW("Progman", None)
+            if pm:
+                line(OK, "desktop found (Progman)")
+            else:
+                line(BAD, "no Progman window: is Explorer running as the shell?")
+                problems += 1
     except Exception as exc:
         line(BAD, "could not read the desktop (%s)" % exc)
         problems += 1
