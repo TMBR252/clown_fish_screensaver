@@ -154,8 +154,4 @@ ramp, and the swimming model — is adapted from **[ASCII Lab](https://github.co
 by [@ascii.lab](https://www.instagram.com/ascii.lab/), specifically `01-clownfish`.
 That project is the creative work here; this one wraps it in a Windows desktop.
 
-**Please read [NOTICE.md](NOTICE.md) before reusing this.** At the time of writing the
-upstream repository carries no licence file, which in copyright terms means all rights
-reserved. The MIT licence in this repository covers the Windows wallpaper harness
-written here — the window handling, the GPU renderer, the behaviour layer — and cannot
-grant rights over the parts derived from ASCII Lab.
+
